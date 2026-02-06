@@ -135,7 +135,7 @@ export function DocumentDock() {
 	};
 
 	const getPageImageUrl = (docId: string, pageNum: number) => {
-		return `${API_BASE_URL}/api/jfk/media?id=${docId}&type=image&filename=page-${pageNum}.png`;
+		return `${API_BASE_URL}/api/docs/media?id=${docId}&type=image&filename=page-${pageNum}.png`;
 	};
 
 	const toggleExpandedSection = (itemId: string, section: string) => {
@@ -201,7 +201,7 @@ export function DocumentDock() {
 
 							// Try to fetch from the internal API first
 							const response = await fetch(
-								`${API_BASE_URL}/api/jfk/documents/${item.id}`
+								`${API_BASE_URL}/api/docs/documents/${item.id}`
 							);
 
 							if (response.ok) {
@@ -213,7 +213,7 @@ export function DocumentDock() {
 									`Internal API failed for ${item.id}, trying external API`
 								);
 								const externalResponse = await fetch(
-									`${API_BASE_URL}/api/jfk/media?id=${item.id}&type=analysis&getLatestPageData=true`
+									`${API_BASE_URL}/api/docs/media?id=${item.id}&type=analysis&getLatestPageData=true`
 								);
 
 								if (externalResponse.ok) {
@@ -261,7 +261,7 @@ export function DocumentDock() {
 	const getFullDocumentData = async (docId: string) => {
 		try {
 			const response = await fetch(
-				`${API_BASE_URL}/api/jfk/media?id=${docId}&type=analysis&getLatestPageData=true`
+				`${API_BASE_URL}/api/docs/media?id=${docId}&type=analysis&getLatestPageData=true`
 			);
 			if (response.ok) {
 				return await response.json();
@@ -481,7 +481,7 @@ export function DocumentDock() {
 					return {
 						id: item.id,
 						title: item.title || item.id,
-						url: `/jfk-files/${item.id}`,
+						url: `/documents/${item.id}`,
 						type: 'document',
 						content: fullData?.fullText || '', // Important: Backend expects 'content' field
 						summary: fullData?.summary || '',
@@ -698,7 +698,7 @@ export function DocumentDock() {
 
 						documents.push({
 							documentId: `${item.id}`,
-							url: `/jfk-files/${item.id}`,
+							url: `/documents/${item.id}`,
 							summary: fullData.summary || '',
 							pageSummary: page.summary || '',
 							content: pageContent || '',
@@ -1162,7 +1162,7 @@ export function DocumentDock() {
 
 			try {
 				const response = await fetch(
-					`${API_BASE_URL}/api/jfk/media?id=${itemId}&type=analysis&getLatestPageData=true`
+					`${API_BASE_URL}/api/docs/media?id=${itemId}&type=analysis&getLatestPageData=true`
 				);
 
 				if (response.ok) {
@@ -1250,7 +1250,7 @@ export function DocumentDock() {
 					const newQueue = event.detail.queue.map((item: any) => ({
 						id: item.id,
 						title: item.title || `Document ${item.id}`,
-						url: item.url || `/jfk-files/${item.id}`,
+						url: item.url || `/documents/${item.id}`,
 						type: item.type || 'document',
 					}));
 

@@ -40,7 +40,7 @@ export function useJfkDocuments(itemsPerPage: number = 10): UseJfkDocumentsRetur
       });
       
       // Use the document-status API with filter
-      const response = await fetch(`/api/jfk/document-status?${queryParams.toString()}`);
+      const response = await fetch(`/api/docs/document-status?${queryParams.toString()}`);
       if (!response.ok) throw new Error(`Failed to fetch documents: ${response.statusText}`);
       
       const data = await response.json();

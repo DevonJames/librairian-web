@@ -1,5 +1,5 @@
-// Type definitions for JFK document data
-// These types were extracted from app/jfk-files/page.tsx
+// Type definitions for document data
+// These types were extracted from app/documents/page.tsx
 
 export interface JFKDocument {
   id: string;

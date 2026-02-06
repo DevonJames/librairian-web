@@ -9,6 +9,7 @@ export interface TimelineChartProps {
   width?: number;
   height?: number;
   onBarClick?: (date: string, count: number) => void;
+  collections?: string[];
 }
 
 interface TimelineEvent {
@@ -26,7 +27,8 @@ export default function TimelineChart({
   documentId, 
   width = 960, 
   height = 600,
-  onBarClick
+  onBarClick,
+  collections = []
 }: TimelineChartProps) {
   const [timelineData, setTimelineData] = useState<TimelineEvent[] | DateCount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -38,11 +40,14 @@ export default function TimelineChart({
       setIsLoading(true);
       setError(null);
       
+      // Build collections parameter
+      const collectionsParam = collections.length > 0 ? `&collections=${collections.join(',')}` : '';
+      
       try {
         // If we have a document ID, get timeline specific to that document
         if (documentId) {
           console.log(`Fetching timeline data for document ID: ${documentId}`);
-          const response = await fetch(`/api/jfk/connections?type=timeline&documentId=${documentId}`);
+          const response = await fetch(`/api/docs/connections?type=timeline&documentId=${documentId}${collectionsParam}`);
           
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -55,7 +60,7 @@ export default function TimelineChart({
         } 
         // Otherwise, get general date statistics across documents
         else {
-          const response = await fetch(`/api/jfk/connections?type=dates`);
+          const response = await fetch(`/api/docs/connections?type=dates${collectionsParam}`);
           
           if (!response.ok) {
             throw new Error(`Failed to fetch dates data: ${response.statusText}`);
@@ -83,7 +88,7 @@ export default function TimelineChart({
     };
     
     fetchTimelineData();
-  }, [documentId]);
+  }, [documentId, collections]);
 
   const handleDateClick = (date: string, count: number) => {
     if (onBarClick) {

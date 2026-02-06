@@ -9,6 +9,7 @@ export type DocumentGroupString = 'jfk' | 'rfk' | string;
 export interface DocumentGroup {
   id: string;
   name: string;
+  count?: number;
 }
 
 // The shape of our context
@@ -18,41 +19,97 @@ interface DocumentGroupContextType {
   toggleGroup: (group: DocumentGroupString) => void;
   isGroupEnabled: (group: DocumentGroupString) => boolean;
   addDocumentGroup: (group: DocumentGroupString) => void;
+  refreshGroups: () => Promise<void>;
+  isLoading: boolean;
 }
 
 // Create the context with a default value
 const DocumentGroupContext = createContext<DocumentGroupContextType>({
-  enabledGroups: ['jfk', 'rfk'],
-  documentGroups: [
-    { id: 'jfk', name: 'jfk' },
-    { id: 'rfk', name: 'rfk' }
-  ],
+  enabledGroups: [],
+  documentGroups: [],
   toggleGroup: () => {},
   isGroupEnabled: () => false,
   addDocumentGroup: () => {},
+  refreshGroups: async () => {},
+  isLoading: true,
 });
 
 // Create a provider component
 export function DocumentGroupProvider({ children }: { children: ReactNode }) {
-  // Initialize with both JFK and RFK enabled by default
-  const [enabledGroups, setEnabledGroups] = useState<DocumentGroupString[]>(['jfk', 'rfk']);
-  const [availableGroups, setAvailableGroups] = useState<DocumentGroupString[]>(['jfk', 'rfk']);
+  const [enabledGroups, setEnabledGroups] = useState<DocumentGroupString[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<DocumentGroupString[]>([]);
+  const [groupCounts, setGroupCounts] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // Fetch available groups from the API
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch('/api/docs/document-groups');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.groups && Array.isArray(data.groups)) {
+          const newGroups = data.groups.map((g: DocumentGroup) => g.id);
+          const newCounts: Record<string, number> = {};
+          data.groups.forEach((g: DocumentGroup) => {
+            newCounts[g.id] = g.count || 0;
+          });
+          
+          setAvailableGroups(prev => {
+            // Merge with existing groups to preserve any manually added ones
+            const merged = new Set([...prev, ...newGroups]);
+            return Array.from(merged);
+          });
+          setGroupCounts(newCounts);
+          
+          // Auto-enable newly discovered groups
+          setEnabledGroups(prev => {
+            if (prev.length === 0) {
+              // No groups enabled yet - enable all
+              return newGroups;
+            }
+            // Add any new groups that weren't previously known
+            const currentSet = new Set(prev);
+            const newlyDiscovered = newGroups.filter((g: string) => !currentSet.has(g));
+            if (newlyDiscovered.length > 0) {
+              return [...prev, ...newlyDiscovered];
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching document groups:', error);
+    } finally {
+      setIsLoading(false);
+      setHasInitialized(true);
+    }
+  };
   
   // Load from localStorage on initial render (client-side only)
   useEffect(() => {
     try {
       const storedGroups = localStorage.getItem('enabledDocumentGroups');
       if (storedGroups) {
-        setEnabledGroups(JSON.parse(storedGroups));
+        const parsed = JSON.parse(storedGroups);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEnabledGroups(parsed);
+        }
       }
       
       const storedAvailableGroups = localStorage.getItem('availableDocumentGroups');
       if (storedAvailableGroups) {
-        setAvailableGroups(JSON.parse(storedAvailableGroups));
+        const parsed = JSON.parse(storedAvailableGroups);
+        if (Array.isArray(parsed)) {
+          setAvailableGroups(parsed);
+        }
       }
     } catch (error) {
       console.error('Error loading document groups from localStorage:', error);
     }
+    
+    // Fetch groups from API after loading localStorage
+    fetchGroups();
   }, []);
   
   // Save to localStorage whenever enabledGroups changes
@@ -104,10 +161,11 @@ export function DocumentGroupProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Convert string groups to DocumentGroup objects
+  // Convert string groups to DocumentGroup objects with counts
   const documentGroups: DocumentGroup[] = availableGroups.map(group => ({
     id: group,
-    name: group
+    name: group.toUpperCase(),
+    count: groupCounts[group] || 0,
   }));
 
   return (
@@ -116,7 +174,9 @@ export function DocumentGroupProvider({ children }: { children: ReactNode }) {
       documentGroups,
       toggleGroup, 
       isGroupEnabled,
-      addDocumentGroup
+      addDocumentGroup,
+      refreshGroups: fetchGroups,
+      isLoading,
     }}>
       {children}
     </DocumentGroupContext.Provider>

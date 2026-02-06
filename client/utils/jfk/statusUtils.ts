@@ -1,5 +1,5 @@
-// Utility functions for handling JFK document statuses
-// These functions were extracted from app/jfk-files/page.tsx
+// Utility functions for handling document statuses
+// These functions were extracted from app/documents/page.tsx
 
 import { JFKDocument, DocumentStatus } from './types';
 
@@ -64,7 +64,7 @@ export const checkIfDocumentNeedsRepair = async (documentId: string): Promise<bo
     }
     
     // Get document info to check its content
-    const docResponse = await fetch(`/api/jfk/document-info?id=${docStatus.dbId}`);
+    const docResponse = await fetch(`/api/docs/document-info?id=${docStatus.dbId}`);
     if (!docResponse.ok) {
       return false;
     }
@@ -106,7 +106,7 @@ export const checkDocumentStatus = async (documentId: string, documentType?: str
     const effectiveDocType = isRfkDocument ? 'rfk' : 'jfk';
     
     // Add the document type to the query params
-    const response = await fetch(`/api/jfk/document-status?documentId=${documentId}&documentType=${effectiveDocType}`);
+    const response = await fetch(`/api/docs/document-status?documentId=${documentId}&documentType=${effectiveDocType}`);
     const data = await response.json();
     
     if (response.ok) {

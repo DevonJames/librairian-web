@@ -1,36 +1,130 @@
-// Utility functions for JFK documents
-// These functions were extracted from app/jfk-files/page.tsx
+// Utility functions for document handling
+// These functions were extracted from app/documents/page.tsx
+
+/**
+ * Get the media source setting
+ * Must be read dynamically for client-side to work properly
+ */
+const getMediaSource = (): string => {
+  // Check if we're in browser or server
+  if (typeof window !== 'undefined') {
+    // Client-side: read from window or process.env
+    return process.env.NEXT_PUBLIC_MEDIA_SOURCE || 'local';
+  }
+  // Server-side
+  return process.env.NEXT_PUBLIC_MEDIA_SOURCE || 'local';
+};
+
+const getApiBaseUrl = (): string => {
+  return process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
+};
+
+/**
+ * Get the document analyzer URL (for local mode)
+ */
+const getDocumentAnalyzerUrl = (): string => {
+  return process.env.NEXT_PUBLIC_DOCUMENT_ANALYZER_URL || 'http://localhost:3001';
+};
+
+/**
+ * Check if we should use local media serving
+ */
+export const isLocalMediaSource = (): boolean => {
+  const source = getMediaSource();
+  console.log('[docUtils] Media source:', source);
+  return source === 'local';
+};
+
+/**
+ * Build media URL based on configuration
+ * When local, uses the document analyzer API (localhost:3001)
+ * When remote, uses the external API
+ */
+export const buildMediaUrl = (
+  id: string, 
+  type: 'image' | 'analysis' | 'pdf', 
+  options?: { 
+    filename?: string; 
+    collection?: string;
+    getLatestPageData?: boolean;
+    pageNumber?: number;
+  }
+): string => {
+  const cleanId = id.replace(/^\/+/, '');
+  
+  if (isLocalMediaSource()) {
+    // Use the local proxy to avoid CORS issues
+    // Proxy route: /api/analyzer-proxy/[...path] -> http://localhost:3001/api/[...path]
+    
+    if (type === 'image') {
+      // Extract page number from filename (e.g., "page-01.png" -> 1)
+      let pageNum = options?.pageNumber || 1;
+      if (options?.filename) {
+        const match = options.filename.match(/page-?(\d+)/i);
+        if (match) {
+          pageNum = parseInt(match[1], 10);
+        }
+      }
+      return `/api/analyzer-proxy/documents/${cleanId}/images/${pageNum}`;
+    }
+    
+    if (type === 'analysis') {
+      // Document metadata endpoint
+      return `/api/analyzer-proxy/documents/${cleanId}`;
+    }
+    
+    if (type === 'pdf') {
+      // For PDF, there's no direct endpoint in the analyzer
+      // Return the metadata endpoint for now
+      return `/api/analyzer-proxy/documents/${cleanId}`;
+    }
+    
+    return `/api/analyzer-proxy/documents/${cleanId}`;
+  }
+  
+  // Use remote API
+  const params = new URLSearchParams({
+    id: cleanId,
+    type,
+  });
+  
+  if (options?.filename) {
+    params.set('filename', options.filename);
+  }
+  if (options?.collection) {
+    params.set('collection', options.collection);
+  }
+  if (options?.getLatestPageData) {
+    params.set('getLatestPageData', 'true');
+  }
+  
+  return `${getApiBaseUrl()}/api/docs/media?${params.toString()}`;
+};
 
 // Get the URL for viewing a document in the app
 export const getDocumentAppUrl = (documentId: string): string => {
-  return `jfk-files/${documentId}`;
+  return `documents/${documentId}`;
 };
 
 // Get the URL for the document's JSON data
 export const getDocumentJsonUrl = (frontendId: string, documentIdMap: Record<string, string>): string | null => {
   const backendId = documentIdMap[frontendId];
   if (!backendId) return null;
-  // Use the correct server URL, removing any leading slash from the ID
-  const cleanId = backendId.replace(/^\/+/, '');
-  return `https://api.oip.onl/api/jfk/media?id=${cleanId}&type=analysis`;
+  return buildMediaUrl(backendId, 'analysis');
 };
 
 // Get the URL for a specific page image of a document
 export const getDocumentPageUrl = (frontendId: string, pageNum: number, documentIdMap: Record<string, string>): string | null => {
   const backendId = documentIdMap[frontendId];
   if (!backendId) return null;
-  // Use the correct server URL, removing any leading slash from the ID
-  const cleanId = backendId.replace(/^\/+/, '');
-  return `https://api.oip.onl/api/jfk/media?id=${cleanId}&type=image&filename=page-${pageNum}.png`;
+  return buildMediaUrl(backendId, 'image', { filename: `page-${pageNum}.png` });
 };
 
 // Get the URL for downloading the document's PDF
 export const getDocumentPdfUrl = (frontendId: string, documentIdMap: Record<string, string>): string | null => {
   const backendId = documentIdMap[frontendId];
   if (!backendId) return null;
-  // Use the correct server URL, removing any leading slash from the ID
-  const cleanId = backendId.replace(/^\/+/, '');
-  return `https://api.oip.onl/api/jfk/media?id=${cleanId}&type=pdf`;
+  return buildMediaUrl(backendId, 'pdf');
 };
 
 // Get the archives.gov source URL for a document
@@ -105,17 +199,18 @@ export const getProgressPercentage = (statusType: string, documents: any[]): num
   return (count / (documents.length || 1)) * 100;
 };
 
-export const getAnalysisUrl = (id: string): string => {
-  const cleanId = id.startsWith('/') ? id.substring(1) : id;
-  return `${process.env.NEXT_PUBLIC_API_URL}/api/jfk/media?id=${cleanId}&type=analysis`;
+export const getAnalysisUrl = (id: string, options?: { collection?: string; getLatestPageData?: boolean }): string => {
+  return buildMediaUrl(id, 'analysis', options);
 };
 
-export const getImageUrl = (id: string, pageNum: number): string => {
-  const cleanId = id.startsWith('/') ? id.substring(1) : id;
-  return `${process.env.NEXT_PUBLIC_API_URL}/api/jfk/media?id=${cleanId}&type=image&filename=page-${pageNum}.png`;
+export const getImageUrl = (id: string, pageNum: number, collection?: string): string => {
+  return buildMediaUrl(id, 'image', { 
+    filename: `page-${pageNum}.png`,
+    pageNumber: pageNum,
+    collection 
+  });
 };
 
-export const getPdfUrl = (id: string): string => {
-  const cleanId = id.startsWith('/') ? id.substring(1) : id;
-  return `${process.env.NEXT_PUBLIC_API_URL}/api/jfk/media?id=${cleanId}&type=pdf`;
+export const getPdfUrl = (id: string, collection?: string): string => {
+  return buildMediaUrl(id, 'pdf', { collection });
 }; 

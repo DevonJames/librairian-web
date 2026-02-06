@@ -42,7 +42,7 @@ const DocumentHoverCard = ({ documentId, initialData }: DocumentHoverCardProps) 
     const fetchDocumentData = async () => {
       try {
         console.log(`Fetching document data for hover card: ${documentId}`);
-        const response = await fetch(`${API_BASE_URL}/api/jfk/media?id=${documentId}&type=analysis`);
+        const response = await fetch(`${API_BASE_URL}/api/docs/media?id=${documentId}&type=analysis`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -148,7 +148,7 @@ const DocumentHoverCard = ({ documentId, initialData }: DocumentHoverCardProps) 
       </div>
       
       <a 
-        href={`/jfk-files/${documentData.documentId}`}
+        href={`/documents/${documentData.documentId}`}
         className="text-xs text-blue-500 hover:underline mt-2 block"
         target="_blank"
         rel="noopener noreferrer"
@@ -198,13 +198,15 @@ export interface ForceGraphProps {
   width?: number;
   height?: number;
   onNodeClick?: (node: GraphNode) => void;
+  collections?: string[];
 }
 
 export default function ForceGraphVisualization({ 
   documentId, 
   width = 960,
   height = 500,
-  onNodeClick
+  onNodeClick,
+  collections = []
 }: ForceGraphProps) {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [originalGraphData, setOriginalGraphData] = useState<GraphData>({ nodes: [], links: [] });
@@ -229,7 +231,7 @@ export default function ForceGraphVisualization({
       setIsLoading(false);
       setError('Please enter a document ID or search for a person');
     }
-  }, [documentId, connectionLayers]);
+  }, [documentId, connectionLayers, collections]);
 
   const fetchDocumentNetwork = async (forceRefresh = false) => {
     if (!documentId) {
@@ -252,12 +254,15 @@ export default function ForceGraphVisualization({
       
       // Add a cache-busting parameter if forceRefresh is true
       const cacheBuster = forceRefresh ? `&_cb=${Date.now()}` : '';
-      const response = await fetch(`${API_BASE_URL}/api/jfk/connections?type=network&documentId=${documentId}&layers=${connectionLayers}${cacheBuster}`);
+      // Build collections parameter
+      const collectionsParam = collections.length > 0 ? `&collections=${collections.join(',')}` : '';
+      // Use local API route instead of external API
+      const response = await fetch(`/api/docs/connections?type=network&documentId=${documentId}&layers=${connectionLayers}${collectionsParam}${cacheBuster}`);
       
       if (!response.ok) {
         // If network fetch fails, try to get more info from debug endpoint
         console.log('Network fetch failed, checking debug endpoint...');
-        const debugResponse = await fetch(`${API_BASE_URL}/api/jfk/connections/debug?documentId=${documentId}`);
+        const debugResponse = await fetch(`/api/docs/connections/debug?documentId=${documentId}`);
         
         if (debugResponse.ok) {
           const debugData = await debugResponse.json();
@@ -305,7 +310,10 @@ export default function ForceGraphVisualization({
       console.log(`Searching for documents mentioning: ${name}`);
       // Add cache-busting parameter to avoid browser caching
       const cacheBuster = `_cb=${Date.now()}`;
-      const response = await fetch(`${API_BASE_URL}/api/jfk/search?person=${encodeURIComponent(name)}&limit=20&layers=${connectionLayers}&${cacheBuster}`);
+      // Build collections parameter
+      const collectionsParam = collections.length > 0 ? `&collections=${collections.join(',')}` : '';
+      // Use local API route instead of external API
+      const response = await fetch(`/api/docs/search?person=${encodeURIComponent(name)}&limit=20&layers=${connectionLayers}${collectionsParam}&${cacheBuster}`);
       
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -601,7 +609,7 @@ export default function ForceGraphVisualization({
       // Prefetch in the background
       Promise.allSettled(
         docsToFetch.map(docId => 
-          fetch(`${API_BASE_URL}/api/jfk/media?id=${docId}&type=analysis`)
+          fetch(`${API_BASE_URL}/api/docs/media?id=${docId}&type=analysis`)
             .then(response => {
               if (!response.ok) throw new Error('Failed to fetch document data');
               return response.json();
@@ -1639,7 +1647,7 @@ export default function ForceGraphVisualization({
                 </div>
                 
                 <a 
-                  href={`/jfk-files/${hoveredNode.id}`}
+                  href={`/documents/${hoveredNode.id}`}
                   className="text-xs text-blue-500 hover:underline block"
                   target="_blank"
                   rel="noopener noreferrer"

@@ -34,7 +34,7 @@ export default function GeographicMap({
       try {
         // If we have a specific document, get places for that document
         if (documentId) {
-          const response = await fetch(`/api/jfk/connections?type=geo&documentId=${documentId}`);
+          const response = await fetch(`/api/docs/connections?type=geo&documentId=${documentId}`);
           
           if (!response.ok) {
             throw new Error(`Failed to fetch geographic data: ${response.statusText}`);
@@ -45,7 +45,7 @@ export default function GeographicMap({
         } 
         // Otherwise, get top places mentioned across documents
         else {
-          const response = await fetch(`/api/jfk/connections?type=places`);
+          const response = await fetch(`/api/docs/connections?type=places`);
           
           if (!response.ok) {
             throw new Error(`Failed to fetch places data: ${response.statusText}`);

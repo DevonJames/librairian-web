@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
-import { NavProjects } from '@/components/nav-projects';
+import { NavCollections } from '@/components/nav-collections';
 import { NavSecondary } from '@/components/nav-secondary';
 import { NavUser } from '@/components/nav-user';
 import { PlatformSwitcher } from '@/components/platform-switcher';
@@ -22,9 +22,6 @@ import {
 	SidebarContent,
 	SidebarFooter,
 	SidebarHeader,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
 // Shared data that doesn't change per platform
@@ -106,11 +103,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			item.items?.some((subItem: any) => pathname === subItem.url),
 	}));
 
-	const processedProjects = platformData.projects.map((project) => ({
-		...project,
-		icon: iconMap[project.icon] || FileText,
-	}));
-
 	return (
 		<Sidebar {...props}>
 			<SidebarHeader>
@@ -118,7 +110,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			</SidebarHeader>
 			<SidebarContent>
 				<NavMain items={processedNavMain} />
-				<NavProjects projects={processedProjects} />
+				<NavCollections />
 				{/* Settings - shared across platforms */}
 				<NavMain items={sharedData.settings} />
 				<NavSecondary

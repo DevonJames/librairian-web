@@ -194,7 +194,7 @@ export function useJfkProcessing(
         // Use the EventSource API for SSE instead of XHR for better handling
         try {
           // First make the POST request to initialize processing
-          const initResponse = await fetch('/api/jfk/process', {
+          const initResponse = await fetch('/api/docs/process', {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
@@ -253,7 +253,7 @@ export function useJfkProcessing(
           
           // Now connect to the processing endpoint through our own API proxy to avoid mixed content errors
           const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
-          const sseUrl = `${apiBaseUrl}/api/jfk/process/status?documentId=${actualId}&collection=${isRfkDocument ? 'rfk' : 'jfk'}`;
+          const sseUrl = `${apiBaseUrl}/api/docs/process/status?documentId=${actualId}&collection=${isRfkDocument ? 'rfk' : 'jfk'}`;
           console.log('Connecting to SSE endpoint:', sseUrl);
           
           const evtSource = new EventSource(sseUrl);
@@ -403,7 +403,7 @@ export function useJfkProcessing(
                     console.log(`[${documentId}] Checking document database status after publishing_from_disk`);
                     try {
                       // Make direct API call to check document status
-                      const response = await fetch(`/api/jfk/document-status?documentId=${actualId}`);
+                      const response = await fetch(`/api/docs/document-status?documentId=${actualId}`);
                       if (response.ok) {
                         const statusData = await response.json();
                         console.log(`[${documentId}] Document status check result:`, statusData);
@@ -660,7 +660,7 @@ export function useJfkProcessing(
         // Scan pages until we have enough documents to process or no more pages
         while (hasMorePages && currentBatchDocIds.length < 500) {
           try {
-            const response = await fetch(`/api/jfk/document-status?page=${currentScanPage}&size=50`);
+            const response = await fetch(`/api/docs/document-status?page=${currentScanPage}&size=50`);
             if (!response.ok) throw new Error(`Failed to fetch page ${currentScanPage}`);
               
             const data = await response.json();
@@ -889,7 +889,7 @@ export function useJfkProcessing(
       }));
       
       // Send repair request to API
-      const response = await fetch(`/api/jfk/process`, {
+      const response = await fetch(`/api/docs/process`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -979,7 +979,7 @@ export function useJfkProcessing(
       setProcessingAllStatus(`Finding documents that need repair...`);
       
       // First, just get the list of broken document IDs without trying to repair them
-      const findResponse = await fetch(`/api/jfk/process`, {
+      const findResponse = await fetch(`/api/docs/process`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

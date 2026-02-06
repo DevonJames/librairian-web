@@ -20,9 +20,9 @@ export function DocumentSidebar() {
 				>
 					<li>
 						<Link
-							href='/jfk-files'
+							href='/documents'
 							className={`block p-2 rounded transition-colors ${
-								pathname === '/jfk-files'
+								pathname === '/documents'
 									? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 font-medium'
 									: 'hover:bg-muted hover:text-indigo-600 dark:hover:text-indigo-400'
 							}`}

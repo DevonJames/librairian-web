@@ -92,7 +92,7 @@ export default function InvestigationsPanel({
 								{item.documentIds.map((docId) => (
 									<a
 										key={docId}
-										href={`/jfk-files/${docId}`}
+										href={`/documents/${docId}`}
 										className='text-[11px] px-2 py-0.5 bg-muted rounded-full text-muted-foreground no-underline'
 									>
 										{docId}

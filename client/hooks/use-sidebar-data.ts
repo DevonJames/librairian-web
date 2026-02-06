@@ -72,25 +72,25 @@ export const fallbackSidebarData: { [key: string]: SidebarData } = {
 		navMain: [
 			{
 				title: 'LIBRΛIRIΛN',
-				url: '/jfk-files',
+				url: '/documents',
 				icon: 'Library',
 				isActive: false,
 				items: [
 					{
 						title: 'Overview',
-						url: '/jfk-files',
+						url: '/documents',
 					},
 					{
 						title: 'Categories',
-						url: '/jfk-files/categories',
+						url: '/documents/categories',
 					},
 					{
 						title: 'Recent Documents',
-						url: '/jfk-files/recent',
+						url: '/documents/recent',
 					},
 					{
 						title: 'Favorites',
-						url: '/jfk-files/favorites',
+						url: '/documents/favorites',
 					},
 					{
 						title: 'Browse Documents',

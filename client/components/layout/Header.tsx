@@ -38,7 +38,7 @@ const Header = () => {
 		if (pathname.startsWith('/news')) {
 			breadcrumbs.push({ title: 'PHΛROS', href: '/news' });
 		} else {
-			breadcrumbs.push({ title: 'ΛLΞXΛNDRIΛ', href: '/jfk-files' });
+			breadcrumbs.push({ title: 'ΛLΞXΛNDRIΛ', href: '/documents' });
 		}
 
 		// Add path segments

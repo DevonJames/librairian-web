@@ -4,7 +4,7 @@ const nextConfig = {
 	async rewrites() {
 		return [
 			{
-				source: '/jfk-files/api/:path*',
+				source: '/documents/api/:path*',
 				destination: '/api/:path*',
 			},
 			{

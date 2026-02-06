@@ -26,6 +26,7 @@ interface ChronosphereProps {
   endDate?: string;
   onSearch?: () => void;
   onDateUpdate?: (newStartDate: string, newEndDate: string) => void;
+  collections?: string[];
 }
 
 interface EntityMention {
@@ -404,7 +405,8 @@ export default function Chronosphere({
   startDate = '',
   endDate = '',
   onSearch,
-  onDateUpdate
+  onDateUpdate,
+  collections = []
 }: ChronosphereProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -466,7 +468,7 @@ export default function Chronosphere({
       
       try {
         // Fetch new documents based on updated date range
-        const apiPath = `/api/jfk/search?${params.toString()}`;
+        const apiPath = `/api/docs/search?${params.toString()}`;
         const response = await fetch(apiPath);
         
         if (response.ok) {
@@ -600,13 +602,19 @@ export default function Chronosphere({
       // Set limit for number of documents to fetch
       params.append('limit', '20');
       
+      // Add collection filter if specified
+      if (collections && collections.length > 0) {
+        params.append('collections', collections.join(','));
+        console.log(`[CHRONOSPHERE] Added parameter: collections=${collections.join(',')}`);
+      }
+      
       console.log(`[CHRONOSPHERE] Loading data with params: ${params.toString()}`);
       
       // First try the search endpoint if we have search parameters
       if (params.toString()) {
         try {
           // Construct the API path using the search endpoint
-          const searchApiPath = `https://api.oip.onl/api/jfk/search?${params.toString()}`;
+          const searchApiPath = `https://api.oip.onl/api/docs/search?${params.toString()}`;
           console.log(`[CHRONOSPHERE] Searching with: ${searchApiPath}`);
           
           const response = await fetch(searchApiPath);
@@ -762,7 +770,7 @@ export default function Chronosphere({
   const fetchDocumentsFromVisualizationEndpoint = async (params: URLSearchParams): Promise<DocumentNode[]> => {
     try {
       // Construct the API path
-      const apiPath = `/api/jfk/visualization?${params.toString()}`;
+      const apiPath = `/api/docs/visualization?${params.toString()}`;
       
       console.log(`[CHRONOSPHERE] Trying visualization endpoint: ${apiPath}`);
       
@@ -828,10 +836,11 @@ export default function Chronosphere({
       searchType,
       searchValue,
       startDate,
-      endDate
+      endDate,
+      collections
     });
     loadData();
-  }, [searchType, searchValue, startDate, endDate]);
+  }, [searchType, searchValue, startDate, endDate, collections]);
   
   // Track shift key state
   useEffect(() => {
@@ -1437,7 +1446,7 @@ export default function Chronosphere({
           const cleanDocId = d.id.replace(/^\/+/, '');
           
           return `<div xmlns="http://www.w3.org/1999/xhtml" style="width:100%; height:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-            <a href="/jfk-files/${cleanDocId}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; color:${isDark ? '#e5e7eb' : '#111827'}; font-size:10px; font-weight:500; font-family:sans-serif; display:block; overflow:hidden; text-overflow:ellipsis;">
+            <a href="/documents/${cleanDocId}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; color:${isDark ? '#e5e7eb' : '#111827'}; font-size:10px; font-weight:500; font-family:sans-serif; display:block; overflow:hidden; text-overflow:ellipsis;">
               ${cleanDocId || 'Unknown ID'}
             </a>
           </div>`;
@@ -1628,7 +1637,7 @@ export default function Chronosphere({
       // For the summary tab - maximize image space
       // Image preview takes up more vertical space
       const pageNum = d._pageNumber || 1;
-      const imageUrl = `https://api.oip.onl/api/jfk/media?id=${d.id}&type=image&fileName=page-${String(pageNum).padStart(2, '0')}.png`;
+      const imageUrl = `https://api.oip.onl/api/docs/media?id=${d.id}&type=image&fileName=page-${String(pageNum).padStart(2, '0')}.png`;
       const imageHeight = contentAreaHeight * 0.6; // Increased image height
 
       // Image background/placeholder for summary tab
@@ -1860,7 +1869,7 @@ export default function Chronosphere({
           d._pageNumber = currentPage - 1;
           // Update page display and image URL
           const newPageNum = d._pageNumber;
-          const newImageUrl = `https://api.oip.onl/api/jfk/media?id=${d.id}&type=image&fileName=page-${String(newPageNum).padStart(2, '0')}.png`;
+          const newImageUrl = `https://api.oip.onl/api/docs/media?id=${d.id}&type=image&fileName=page-${String(newPageNum).padStart(2, '0')}.png`;
           
           // Update page display text
           pageControls.select('text').text(`Page ${newPageNum}`);
@@ -1883,7 +1892,7 @@ export default function Chronosphere({
           d._pageNumber = currentPage + 1;
           // Update page display and image URL
           const newPageNum = d._pageNumber;
-          const newImageUrl = `https://api.oip.onl/api/jfk/media?id=${d.id}&type=image&fileName=page-${String(newPageNum).padStart(2, '0')}.png`;
+          const newImageUrl = `https://api.oip.onl/api/docs/media?id=${d.id}&type=image&fileName=page-${String(newPageNum).padStart(2, '0')}.png`;
           
           // Update page display text
           pageControls.select('text').text(`Page ${newPageNum}`);
@@ -2004,7 +2013,7 @@ export default function Chronosphere({
                   button.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" class="animate-spin" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>';
                   
                   // Use the external API directly since the internal API may not be set up
-                  const detailsResponse = await fetch(`https://api.oip.onl/api/jfk/media?id=${cleanDocId}&type=analysis&getLatestPageData=true`);
+                  const detailsResponse = await fetch(`https://api.oip.onl/api/docs/media?id=${cleanDocId}&type=analysis&getLatestPageData=true`);
                   let detailedDocData = null;
                   
                   if (detailsResponse.ok) {
@@ -2013,7 +2022,7 @@ export default function Chronosphere({
                   }
                   
                   // Also try the document-info API as a backup
-                  const response = await fetch(`/api/jfk/document-info?id=${cleanDocId}`);
+                  const response = await fetch(`/api/docs/document-info?id=${cleanDocId}`);
                   let docInfo = null;
                   
                   if (response.ok) {
@@ -2030,7 +2039,7 @@ export default function Chronosphere({
                   const newItem = {
                     id: cleanDocId,
                     title: title,
-                    url: `/jfk-files/${cleanDocId}`,
+                    url: `/documents/${cleanDocId}`,
                     type: 'document'
                   };
                   

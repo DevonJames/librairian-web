@@ -27,7 +27,7 @@ export default function PopulateArchivesButton() {
       setError(null);
       setResult(null);
       
-      const response = await fetch('/api/jfk/populate-archives', {
+      const response = await fetch('/api/docs/populate-archives', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

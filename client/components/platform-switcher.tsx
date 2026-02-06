@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 
 const platformRoutes = {
-	librarian: '/jfk-files',
+	librarian: '/documents',
 	pharos: '/news',
 };
 
