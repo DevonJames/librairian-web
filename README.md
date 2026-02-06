@@ -1,171 +1,167 @@
-# Librairian Monorepo
+# Document Viewer
 
-A monorepo containing the Librairian application - an AI-assisted document analysis and search interface focused on JFK assassination documents.
-
-## Structure
-
-This monorepo contains the following packages:
-
--   **`client/`**: Next.js frontend application
--   **`server/`**: Backend server (to be added)
--   **`shared/`**: Shared types and utilities
-
-## Overview
-
-Librairian provides an interface for interacting with a collection of JFK-related documents and associated data. Key functionalities include:
-
--   Browsing and viewing documents within the `/jfk-files` section.
--   Detailed views for specific documents and related individuals.
--   Capturing new data points or sources.
--   Searching and exploring the dataset.
--   Various data visualizations to understand connections and timelines.
+A document analysis and viewing application that provides an intuitive interface for browsing, searching, and analyzing collections of documents. Integrates with the [Document Analysis Tool](https://github.com/your-repo/document-analysis-tool) for OCR, entity extraction, and document processing.
 
 ## Features
 
--   **Document Hub (`/jfk-files`)**: Central interface for browsing, viewing, and managing JFK documents. Includes pagination and status tracking.
--   **Detailed Views**:
-    -   View specific document details (`/jfk-files/[id]`).
-    -   View profiles and connections for individuals (`/jfk-files/person/[name]`).
--   **Data Visualizations**: Includes multiple visualization types:
-    -   Chronosphere
-    -   Force Graph
-    -   Geographic Map
-    -   Timeline Chart
-    -   Enhanced Map & Timeline Visualizations
--   **Backend API**: Comprehensive API routes under `/api/` handle authentication, data retrieval (documents, connections, profiles), processing, capture, and search functionalities.
+- **Collections Management**: Organize documents into collections, create new collections, and add files to existing ones
+- **Document Viewer**: View document pages with high-quality images and extracted text
+- **Entity Extraction**: Automatic extraction of people, places, dates, and objects mentioned in documents
+- **Geographic Visualization**: Interactive map showing locations mentioned in documents (powered by Leaflet)
+- **Timeline Visualization**: Visual timeline of dates referenced in documents
+- **False Redaction Detection**: Detect hidden text under visual redactions in PDFs
+- **Correspondence Support**: Special handling for letters with From/To information
+- **Search**: Live search across document content, entities, and metadata within collections
+- **Real-time Processing**: Monitor document processing progress with a minimizable status indicator
 
-## Getting Started
+## Project Structure
 
-### Prerequisites
-
--   Node.js 18 or higher
--   npm or yarn
-
-### Installation
-
-From the root directory:
-
-```bash
-# Install all dependencies for all workspaces
-npm install
-
-# Or install dependencies for specific workspace
-npm install --workspace=client
 ```
+document-viewer/
+├── client/                 # Next.js frontend application
+│   ├── app/               # App Router pages and API routes
+│   ├── components/        # React components
+│   └── lib/               # Utilities and database client
+├── prisma/                # Database schema and migrations
+├── scripts/               # Utility scripts
+├── server/                # Backend services (news-scraper, text-analysis)
+└── shared/                # Shared types and utilities
+```
+
+## Prerequisites
+
+- Node.js 18+
+- PostgreSQL 12+
+- [Document Analysis Tool](https://github.com/your-repo/document-analysis-tool) running on `localhost:3001`
+
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-repo/document-viewer.git
+   cd document-viewer
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables:**
+   
+   Copy the example environment file and update the values:
+   ```bash
+   cp .env.example .env
+   ```
+
+   Key environment variables:
+   ```env
+   # Database connection
+   DATABASE_URL="postgresql://postgres:password@localhost:5432/jfk_documents?schema=public"
+
+   # Media source: 'local' uses Document Analysis Tool, 'remote' uses external API
+   NEXT_PUBLIC_MEDIA_SOURCE=local
+
+   # Document Analysis Tool API URL (required when NEXT_PUBLIC_MEDIA_SOURCE=local)
+   DOCUMENT_ANALYZER_URL=http://localhost:3001
+   ```
+
+4. **Set up the database:**
+   ```bash
+   # Start PostgreSQL (if using Docker)
+   npm run db:local
+
+   # Generate Prisma client and run migrations
+   npm run post
+   npx prisma migrate dev
+   ```
+
+## Running the Application
 
 ### Development
 
 ```bash
-# Setup Development Server
-npm run install:all
-npm run db:local
-npm run post
-
-# Start with npm
-npm run dev:local
-# OR
-# Use Docker Compose
-docker compose -f docker-compose.dev.yml up -d --build
-
-# Start Client with npm
+# Start the client application
 npm run dev:client
 ```
 
-### Prerequisites
+The application will be available at [http://localhost:3000](http://localhost:3000).
 
--   Node.js 18+
--   NPM or Yarn
--   PostgreSQL 12+ (running on port 5432)
-
-### Database Setup
-
-1. Create a PostgreSQL database named `jfk_documents`:
-
-    ```
-    createdb jfk_documents
-    ```
-
-    If you need to specify a user or different configuration, update the `DATABASE_URL` in your `.env.local` file.
-
-2. Run the database migrations:
-    ```
-    npx prisma migrate dev
-    ```
-
-### Installation
-
-1. Clone the repository:
-
-    ```
-    git clone https://github.com/devonjames/librairian-web.git
-    cd librairian-web
-    ```
-
-2. Install dependencies:
-
-    ```
-    npm install
-    # or
-    yarn install
-    ```
-
-3. Configure environment variables:
-   Create a `.env.local` file in the root directory with the following variables:
-    ```
-    DATABASE_URL="postgresql://user@localhost:5432/jfk_documents?schema=public"
-    NEXT_PUBLIC_API_URL=https://api.oip.onl
-    NEXT_PUBLIC_WEBSITE_URL=http://localhost:3000
-    JWT_SECRET=your-jwt-secret
-    NEXTAUTH_URL=http://localhost:3000
-    NEXTAUTH_SECRET=your-nextauth-secret
-    ```
-
-### Running the Application
-
-You can run the application using the provided shell script, which will run the database migrations and start the development server:
+### With Docker
 
 ```bash
-chmod +x run-jfk-files.sh
-./run-jfk-files.sh
+# Start all services with Docker Compose
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
-Alternatively, you can run the commands manually:
+## Usage
 
-1. Run Prisma migrations:
+### Creating a Collection
 
-    ```
-    npx prisma migrate dev
-    ```
+1. Click "Create New Collection" in the sidebar
+2. Select a folder or file to process
+3. Choose OCR settings (Grok, DocTR, or TrOCR)
+4. Optionally enable entity analysis and false redaction detection
+5. Click "Start Processing"
 
-2. Start the development server:
+The progress can be minimized to a floating indicator while processing continues in the background.
 
-    ```
-    npm run dev
-    # or
-    yarn dev
-    ```
+### Adding Files to an Existing Collection
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+1. Click the `...` menu next to a collection in the sidebar
+2. Select "Add Files"
+3. Choose files/folders to add and processing options
 
-## Project Structure
+### Viewing Documents
 
-The project follows a structure typical for Next.js applications using the App Router:
+- Click on any document to open the document viewer
+- Navigate pages using the page selector
+- View extracted entities (people, places, dates, objects) in the sidebar panels
+- Explore the geographic map and timeline visualizations
+- Use the "Sync" button to refresh document data from the analyzer
 
--   `/app`: Contains core application logic, including pages (routes) and API routes.
--   `/components`: Shared React components used across the application.
--   `/hooks`: Custom React hooks.
--   `/lib`: Core library functions, potentially including database interactions or external API clients.
--   `/prisma`: Prisma schema and related database files.
--   `/public`: Static assets (images, fonts, etc.) directly accessible via the web server.
--   `/scripts`: Utility scripts for various tasks (e.g., database seeding, deployment).
--   `/utils`: General utility functions.
+### Searching
+
+On a collection page, use the search bar to filter documents by:
+- Document title
+- Summary content
+- People mentioned
+- Places mentioned
+- Dates referenced
+
+## Database Scripts
+
+```bash
+# Import documents from local analysis output
+npm run db:import-local
+
+# Update existing documents from local analysis
+npm run db:update-local
+
+# Reset database
+npm run db:reset
+```
 
 ## Technology Stack
 
--   **Frontend**: Next.js (App Router), React, Tailwind CSS
--   **Backend**: Next.js API Routes
--   **Authentication**: Likely NextAuth.js or similar (based on `/api/auth/`) (not yet included)
--   **Data Storage**: Local storage (client-side) with optional database integration
+- **Frontend**: Next.js 15 (App Router), React 19, Tailwind CSS
+- **UI Components**: Radix UI, Lucide Icons, Framer Motion
+- **Maps**: Leaflet, React-Leaflet
+- **Charts**: Recharts, D3.js
+- **Database**: PostgreSQL with Prisma ORM
+- **Real-time**: Server-Sent Events (SSE) for processing updates
+
+## API Routes
+
+The application includes several API endpoints:
+
+- `/api/docs/documents/[id]` - Get document details
+- `/api/docs/documents/[id]/sync` - Sync document from analyzer
+- `/api/docs/document-status` - List documents with filtering
+- `/api/docs/document-groups` - Get available collections
+- `/api/docs/sync-all` - Bulk sync all documents
+- `/api/analyzer-proxy/[...path]` - Proxy requests to Document Analysis Tool
+- `/api/filesystem/browse` - Browse local filesystem for file selection
 
 ## Contributing
 

@@ -20,13 +20,6 @@ const getApiBaseUrl = (): string => {
 };
 
 /**
- * Get the document analyzer URL (for local mode)
- */
-const getDocumentAnalyzerUrl = (): string => {
-  return process.env.NEXT_PUBLIC_DOCUMENT_ANALYZER_URL || 'http://localhost:3001';
-};
-
-/**
  * Check if we should use local media serving
  */
 export const isLocalMediaSource = (): boolean => {

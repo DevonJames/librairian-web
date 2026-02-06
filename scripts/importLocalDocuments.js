@@ -11,7 +11,7 @@
  *   node scripts/importLocalDocuments.js --path /your/output/path --collection "my-collection"
  * 
  * Options:
- *   --path <path>       Path to the output directory (default: from LOCAL_DOCUMENTS_PATH env)
+ *   --path <path>       Path to the output directory (required)
  *   --collection <name> Collection/group name for the documents (e.g., "jfk", "rfk")
  *   --test              Test mode - only import first 5 documents
  *   --force             Force re-import even if document exists (deletes and recreates)
@@ -42,16 +42,16 @@ const forceMode = args.includes('--force');
 const updateMode = args.includes('--update');
 const dryRun = args.includes('--dry-run');
 
-// Get path from args or environment
+// Get path from args
 const pathArgIndex = args.indexOf('--path');
-const localPath = pathArgIndex !== -1 ? args[pathArgIndex + 1] : process.env.LOCAL_DOCUMENTS_PATH;
+const localPath = pathArgIndex !== -1 ? args[pathArgIndex + 1] : null;
 
 // Get collection name from args
 const collectionArgIndex = args.indexOf('--collection');
 const collectionName = collectionArgIndex !== -1 ? args[collectionArgIndex + 1] : undefined;
 
 if (!localPath) {
-  console.error('Error: No path specified. Use --path <path> or set LOCAL_DOCUMENTS_PATH environment variable.');
+  console.error('Error: No path specified. Use --path <path> to specify the output directory.');
   process.exit(1);
 }
 
