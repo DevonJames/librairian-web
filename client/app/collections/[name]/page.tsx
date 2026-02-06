@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, use, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, FileText, Calendar, Users, MapPin, Search, X, EyeOff, Plus } from 'lucide-react';
+import { ArrowLeft, FileText, Calendar, Users, MapPin, Search, X, EyeOff, Plus, ListPlus, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CreateCollectionDialog } from '@/components/create-collection-dialog';
+import { useDocumentDock, DocumentItem } from '@/lib/context/DocumentDockContext';
 
 interface FalseRedactions {
   found: boolean;
@@ -37,6 +38,30 @@ export default function CollectionPage({ params }: { params: Promise<{ name: str
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [addFilesDialogOpen, setAddFilesDialogOpen] = useState(false);
+  
+  // Document queue functionality
+  const { queue, addToQueue } = useDocumentDock();
+  
+  // Check if a document is in the queue
+  const isInQueue = useCallback((docId: string) => {
+    return queue.some(item => item.id === docId);
+  }, [queue]);
+  
+  // Add document to queue
+  const handleAddToQueue = useCallback((doc: Document, e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigation when clicking the button
+    e.stopPropagation();
+    
+    const docItem: DocumentItem = {
+      id: doc.id,
+      title: doc.title || doc.id,
+      url: `/documents/${doc.id}`,
+      type: 'document',
+      excerpt: doc.summary,
+    };
+    
+    addToQueue(docItem);
+  }, [addToQueue]);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -423,6 +448,49 @@ export default function CollectionPage({ params }: { params: Promise<{ name: str
                               </span>
                             )}
                           </div>
+                          
+                          {/* Add to Queue Button */}
+                          <button
+                            onClick={(e) => handleAddToQueue(doc, e)}
+                            disabled={isInQueue(doc.id)}
+                            style={{
+                              marginTop: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.375rem',
+                              padding: '0.375rem 0.625rem',
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
+                              borderRadius: '0.375rem',
+                              border: 'none',
+                              cursor: isInQueue(doc.id) ? 'default' : 'pointer',
+                              backgroundColor: isInQueue(doc.id) ? '#dcfce7' : '#f3f4f6',
+                              color: isInQueue(doc.id) ? '#16a34a' : '#4b5563',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isInQueue(doc.id)) {
+                                e.currentTarget.style.backgroundColor = '#e5e7eb';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isInQueue(doc.id)) {
+                                e.currentTarget.style.backgroundColor = '#f3f4f6';
+                              }
+                            }}
+                          >
+                            {isInQueue(doc.id) ? (
+                              <>
+                                <Check style={{ width: '0.75rem', height: '0.75rem' }} />
+                                In Queue
+                              </>
+                            ) : (
+                              <>
+                                <ListPlus style={{ width: '0.75rem', height: '0.75rem' }} />
+                                Add to Queue
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
                     </motion.div>

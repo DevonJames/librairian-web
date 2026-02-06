@@ -6,6 +6,7 @@ import { ThemeProvider } from '../lib/context/ThemeContext';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import Header from '@/components/layout/Header';
+import { DocumentDockProvider } from '@/lib/context/DocumentDockContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,17 +29,19 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
-					<SidebarProvider>
-						<AppSidebar />
-						<SidebarInset className='flex flex-col h-full'>
-							<div className='sticky top-0 z-10 bg-background border-b'>
-								<Header />
-							</div>
-							<div className='flex-1 overflow-auto'>
-								{children}
-							</div>
-						</SidebarInset>
-					</SidebarProvider>
+					<DocumentDockProvider>
+						<SidebarProvider>
+							<AppSidebar />
+							<SidebarInset className='flex flex-col h-full'>
+								<div className='sticky top-0 z-10 bg-background border-b'>
+									<Header />
+								</div>
+								<div className='flex-1 overflow-auto'>
+									{children}
+								</div>
+							</SidebarInset>
+						</SidebarProvider>
+					</DocumentDockProvider>
 				</ThemeProvider>
 			</body>
 		</html>

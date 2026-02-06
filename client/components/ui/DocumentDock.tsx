@@ -57,7 +57,7 @@ import InvestigationsPanel from './InvestigationsPanel';
 import SortableDocumentItem from './SortableDocumentItem';
 import AudioPlayerHeader from './AudioPlayerHeader';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.oip.onl';
+// All API requests now use local endpoints
 
 // Sortable item component for drag and drop
 
@@ -116,6 +116,7 @@ export function DocumentDock() {
 	>(null);
 	const [showPlaylist, setShowPlaylist] = useState<boolean>(false);
 	const [activeId, setActiveId] = useState<string | null>(null);
+	const [investigationFocus, setInvestigationFocus] = useState<string>('');
 
 	// Load saved playlists from localStorage
 	useEffect(() => {
@@ -135,7 +136,8 @@ export function DocumentDock() {
 	};
 
 	const getPageImageUrl = (docId: string, pageNum: number) => {
-		return `${API_BASE_URL}/api/docs/media?id=${docId}&type=image&filename=page-${pageNum}.png`;
+		// Use local analyzer proxy for images
+		return `/api/analyzer-proxy/documents/${docId}/images/${pageNum}`;
 	};
 
 	const toggleExpandedSection = (itemId: string, section: string) => {
@@ -194,34 +196,34 @@ export function DocumentDock() {
 							details[item.id] =
 								window.documentDetailsCache[item.id];
 						} else {
-							// No cached data, fetch from API
+							// No cached data, fetch from local API
 							console.log(
 								`Fetching document details for ${item.id}`
 							);
 
-							// Try to fetch from the internal API first
+							// Try to fetch from the local API first
 							const response = await fetch(
-								`${API_BASE_URL}/api/docs/documents/${item.id}`
+								`/api/docs/documents/${item.id}`
 							);
 
 							if (response.ok) {
 								const data = await response.json();
-								details[item.id] = data;
+								details[item.id] = data.document || data;
 							} else {
-								// If internal API fails, try the external API
+								// If local API fails, try the analyzer proxy
 								console.log(
-									`Internal API failed for ${item.id}, trying external API`
+									`Local API failed for ${item.id}, trying analyzer proxy`
 								);
-								const externalResponse = await fetch(
-									`${API_BASE_URL}/api/docs/media?id=${item.id}&type=analysis&getLatestPageData=true`
+								const analyzerResponse = await fetch(
+									`/api/analyzer-proxy/documents/${item.id}`
 								);
 
-								if (externalResponse.ok) {
-									const data = await externalResponse.json();
+								if (analyzerResponse.ok) {
+									const data = await analyzerResponse.json();
 									details[item.id] = data;
 								} else {
 									console.error(
-										`Failed to fetch details for document ${item.id} from both APIs`
+										`Failed to fetch details for document ${item.id}`
 									);
 								}
 							}
@@ -260,8 +262,16 @@ export function DocumentDock() {
 	// Function to get full document data
 	const getFullDocumentData = async (docId: string) => {
 		try {
+			// Try local API first
+			const localResponse = await fetch(`/api/docs/documents/${docId}`);
+			if (localResponse.ok) {
+				const data = await localResponse.json();
+				return data.document || data;
+			}
+			
+			// Fall back to analyzer proxy
 			const response = await fetch(
-				`${API_BASE_URL}/api/docs/media?id=${docId}&type=analysis&getLatestPageData=true`
+				`/api/analyzer-proxy/documents/${docId}`
 			);
 			if (response.ok) {
 				return await response.json();
@@ -482,11 +492,8 @@ export function DocumentDock() {
 						id: item.id,
 						title: item.title || item.id,
 						url: `/documents/${item.id}`,
-						type: 'document',
-						content: fullData?.fullText || '', // Important: Backend expects 'content' field
+						content: fullData?.fullText || '',
 						summary: fullData?.summary || '',
-						fullText: fullData?.fullText || '',
-						pageCount: fullData?.pageCount || 1,
 					};
 				})
 			);
@@ -500,115 +507,83 @@ export function DocumentDock() {
 				throw new Error('Failed to fetch document data');
 			}
 
-			// Use named hosts that match what the backend expects - based on the browser extension
-			const selectedHosts = ['hypatia', 'socrates'];
-
-			// Prepare the request body
+			// Prepare the request body for local API
 			const requestBody = {
 				articles,
-				selectedHosts,
-				targetLengthSeconds: 300, // 5 minutes default
+				selectedHosts: ['host1', 'host2'],
+				targetLengthSeconds: 300,
 			};
 
-			console.log(
-				'Sending podcast request:',
-				JSON.stringify(requestBody)
-			);
+			console.log('Sending podcast request to local API');
 
-			// Set up event source to process the SSE response directly from the POST request
-			const eventSource = new EventSource(
-				`${API_BASE_URL}/api/generate/podcast`
-			);
-
-			// Send the POST request
-			fetch(`${API_BASE_URL}/api/generate/podcast`, {
+			// Use fetch with streaming for SSE
+			const response = await fetch('/api/generate/podcast', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify(requestBody),
 				signal,
-			}).catch((error) => {
-				console.error('Error with podcast fetch:', error);
-				setPodcastStatus('error');
-				setPodcastProgress('Error starting podcast generation');
-				eventSource.close();
-				// No need to throw here as we're handling the error
 			});
 
-			// Handle SSE events
-			eventSource.addEventListener('generatingPodcast', (event) => {
-				try {
-					const data =
-						typeof event.data === 'string'
-							? event.data.replace(/^"/, '').replace(/"$/, '')
-							: event.data;
-					setPodcastProgress(data);
-				} catch (e) {
-					setPodcastProgress('Generating podcast...');
-				}
-			});
+			if (!response.ok) {
+				throw new Error(`Failed to start podcast generation: ${response.statusText}`);
+			}
 
-			eventSource.addEventListener('progress', (event) => {
-				try {
-					const data =
-						typeof event.data === 'string'
-							? event.data.replace(/^"/, '').replace(/"$/, '')
-							: event.data;
-					setPodcastProgress(data);
-				} catch (e) {
-					setPodcastProgress('Processing...');
-				}
-			});
+			if (!response.body) {
+				throw new Error('Response body is null');
+			}
 
-			eventSource.addEventListener('podcastComplete', (event) => {
-				try {
-					let data;
-					if (typeof event.data === 'string') {
-						// Try to parse the data, removing any extra quotes
-						data = JSON.parse(
-							event.data.replace(/^"/, '').replace(/"$/, '')
-						);
-					} else {
-						data = event.data;
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			// Process the SSE stream
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const events = buffer.split('\n\n');
+				buffer = events.pop() || '';
+
+				for (const eventText of events) {
+					if (!eventText.trim()) continue;
+
+					let eventName = 'message';
+					let eventData = '';
+
+					for (const line of eventText.split('\n')) {
+						if (line.startsWith('event:')) {
+							eventName = line.substring(6).trim();
+						} else if (line.startsWith('data:')) {
+							eventData = line.substring(5).trim();
+						}
 					}
 
-					setPodcastStatus('ready');
-					setPodcastUrl(
-						`${API_BASE_URL}/api/generate/media?id=${data.podcastFile}`
-					);
-				} catch (e) {
-					console.error('Error parsing podcast complete event:', e);
-					setPodcastStatus('error');
-					setPodcastProgress('Error processing podcast data');
-				} finally {
-					eventSource.close();
-					controller.abort(); // Abort the fetch request if it's still ongoing
+					try {
+						const data = JSON.parse(eventData);
+
+						if (eventName === 'generatingPodcast' || eventName === 'progress') {
+							setPodcastProgress(data.message || 'Generating...');
+						} else if (eventName === 'podcastComplete') {
+							setPodcastStatus('ready');
+							setPodcastUrl(`/api/generate/media?id=${data.podcastFile}`);
+							setCurrentPlayer('podcast');
+							return;
+						} else if (eventName === 'error') {
+							throw new Error(data.message || 'Unknown error');
+						}
+					} catch (e) {
+						// Data might be a plain string
+						if (eventName === 'progress') {
+							setPodcastProgress(eventData);
+						}
+					}
 				}
-			});
-
-			eventSource.addEventListener('error', (event) => {
-				console.error('Podcast generation error:', event);
-				setPodcastStatus('error');
-				setPodcastProgress('Error generating podcast');
-				eventSource.close();
-				controller.abort(); // Abort the fetch request if it's still ongoing
-			});
-
-			eventSource.addEventListener('ping', (event) => {
-				console.log('Podcast generation connection alive:', event.data);
-			});
-
-			// Handle connection errors
-			eventSource.onerror = () => {
-				console.error('EventSource connection error');
-				setPodcastStatus('error');
-				setPodcastProgress('Connection error');
-				eventSource.close();
-				controller.abort(); // Abort the fetch request if it's still ongoing
-			};
+			}
 		} catch (error) {
-			console.error('Error initiating podcast generation:', error);
+			console.error('Error generating podcast:', error);
 			setPodcastStatus('error');
 			setPodcastProgress(
 				error instanceof Error ? error.message : 'Unknown error'
@@ -638,113 +613,66 @@ export function DocumentDock() {
 			);
 
 			// Format data for the investigative report API
-			// First, we'll create individual document entries for each page
-			let documents = [];
-			let allNames = new Set<string>();
-			let allDates = new Set<string>();
-			let allPlaces = new Set<string>();
-			let allObjects = new Set<string>();
+			const documents: any[] = [];
 
 			for (const { item, fullData } of fullDocumentsData) {
 				if (!fullData) continue;
 
-				// Add to metadata collections
-				if (fullData.allNames)
-					fullData.allNames.forEach((name: string) =>
-						allNames.add(name)
-					);
-				if (fullData.allDates)
-					fullData.allDates.forEach((date: string) =>
-						allDates.add(date)
-					);
-				if (fullData.allPlaces)
-					fullData.allPlaces.forEach((place: string) =>
-						allPlaces.add(place)
-					);
-				if (fullData.allObjects)
-					fullData.allObjects.forEach((object: string) =>
-						allObjects.add(object)
-					);
+				// Create document entry with all available data
+				documents.push({
+					documentId: item.id,
+					url: `/documents/${item.id}`,
+					summary: fullData.summary || '',
+					content: fullData.fullText || '',
+					names: fullData.allNames || [],
+					dates: fullData.allDates || [],
+					places: fullData.allPlaces || [],
+					objects: fullData.allObjects || [],
+					falseRedactions: fullData.falseRedactions || null,
+				});
 
-				// Create page-level entries
+				// Also add page-level entries if available
 				if (fullData.pages && Array.isArray(fullData.pages)) {
 					for (const page of fullData.pages) {
-						// Extract page text from fullText if available
-						let pageContent = '';
-						if (fullData.fullText) {
-							const pageMarker = `--- PAGE ${page.pageNumber} ---`;
-							const nextPageMarker = `--- PAGE ${
-								page.pageNumber + 1
-							} ---`;
-
-							const startIndex =
-								fullData.fullText.indexOf(pageMarker);
-							if (startIndex !== -1) {
-								const endIndex = fullData.fullText.indexOf(
-									nextPageMarker,
-									startIndex
-								);
-								pageContent =
-									endIndex !== -1
-										? fullData.fullText.substring(
-												startIndex,
-												endIndex
-										  )
-										: fullData.fullText.substring(
-												startIndex
-										  );
-							}
-						}
-
 						documents.push({
-							documentId: `${item.id}`,
+							documentId: item.id,
 							url: `/documents/${item.id}`,
 							summary: fullData.summary || '',
 							pageSummary: page.summary || '',
-							content: pageContent || '',
 							names: page.names || [],
 							dates: page.dates || [],
 							places: page.places || [],
 							objects: page.objects || [],
 							pageNumber: page.pageNumber,
-							date: fullData.date || '',
 						});
 					}
 				}
 			}
 
-			// Only proceed if we have at least one page with content
+			// Only proceed if we have documents
 			if (documents.length === 0) {
-				throw new Error(
-					'Failed to fetch document data or no pages found'
-				);
+				throw new Error('Failed to fetch document data');
 			}
 
-			// Prepare the request body
+			// Prepare the request body for local API
 			const requestBody = {
 				documents,
-				investigation: 'The JFK Files Investigation',
+				investigation: investigationFocus.trim() || 'Document Investigation',
 				selectedInvestigators: ['reporter', 'privateEye'],
-				targetLengthSeconds: 600, // 10 minutes default
+				targetLengthSeconds: 300, // 5 minutes
 			};
 
-			console.log(
-				'Sending investigative report request:',
-				JSON.stringify(requestBody)
-			);
+			console.log('Sending investigative report request to local API');
 
-			// NEW APPROACH: Use a single fetch with streaming to handle SSE
-			const response = await fetch(
-				`${API_BASE_URL}/api/generate/investigative-report`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(requestBody),
-					signal,
-				}
-			);
+			// Use local API
+			const response = await fetch('/api/generate/investigative-report', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(requestBody),
+				signal,
+			});
 
 			if (!response.ok) {
 				const errorData = await response.text();
@@ -873,11 +801,12 @@ export function DocumentDock() {
 								minute: '2-digit',
 							});
 
-							// More descriptive title based on document count
+							// More descriptive title based on investigation focus and document count
+							const focusLabel = investigationFocus.trim() || 'Investigation';
 							const reportTitle =
 								docCount === 1
-									? `Investigation: ${firstDocTitle} (${dateStr})`
-									: `Investigation: ${firstDocTitle} +${
+									? `${focusLabel}: ${firstDocTitle} (${dateStr})`
+									: `${focusLabel}: ${firstDocTitle} +${
 											docCount - 1
 									  } more (${dateStr})`;
 
@@ -885,8 +814,8 @@ export function DocumentDock() {
 							const reportMetadata = {
 								id: '',
 								title: reportTitle,
-								showName: 'JFK Files Investigation',
-								tags: ['JFK Files', 'Investigative Report'],
+								showName: investigationFocus.trim() || 'Document Investigation',
+								tags: ['Investigative Report'],
 								documentIds: queue.map((item) => item.id),
 								audioUrl: '',
 								timestamp: new Date().toISOString(),
@@ -895,10 +824,10 @@ export function DocumentDock() {
 							if (typeof data === 'object') {
 								if (data.reportFile) {
 									reportFileId = data.reportFile;
-									audioUrl = `${API_BASE_URL}/api/generate/media?id=${data.reportFile}`;
-								} else if (data.documentDidTx) {
-									reportFileId = data.documentDidTx;
-									audioUrl = `${API_BASE_URL}/api/generate/media?id=${data.documentDidTx}`;
+									audioUrl = `/api/generate/media?id=${data.reportFile}`;
+								} else if (data.audioUrl) {
+									reportFileId = data.audioUrl.split('id=')[1] || '';
+									audioUrl = data.audioUrl;
 								}
 
 								if (audioUrl) {
@@ -1161,12 +1090,12 @@ export function DocumentDock() {
 			setPageContentLoading((prev) => ({ ...prev, [pageKey]: true }));
 
 			try {
-				const response = await fetch(
-					`${API_BASE_URL}/api/docs/media?id=${itemId}&type=analysis&getLatestPageData=true`
-				);
-
+				// Try local API first
+				let response = await fetch(`/api/docs/documents/${itemId}`);
+				
 				if (response.ok) {
-					const data = await response.json();
+					const result = await response.json();
+					const data = result.document || result;
 					if (data.pages && Array.isArray(data.pages)) {
 						const pageSummary = data.pages.find(
 							(p: any) => p.pageNumber === pageNum
@@ -1176,6 +1105,23 @@ export function DocumentDock() {
 								...prev,
 								[pageKey]: pageSummary,
 							}));
+						}
+					}
+				} else {
+					// Fall back to analyzer proxy
+					response = await fetch(`/api/analyzer-proxy/documents/${itemId}`);
+					if (response.ok) {
+						const data = await response.json();
+						if (data.pages && Array.isArray(data.pages)) {
+							const pageSummary = data.pages.find(
+								(p: any) => p.pageNumber === pageNum
+							);
+							if (pageSummary) {
+								setPageContent((prev) => ({
+									...prev,
+									[pageKey]: pageSummary,
+								}));
+							}
 						}
 					}
 				}
@@ -1502,27 +1448,40 @@ export function DocumentDock() {
 												/>
 												<span>Podcast</span>
 											</button>
-											<button
-												onClick={
-													generateInvestigativeReport
-												}
-												disabled={
-													(reportStatus as string) ===
-														'generating' ||
-													(podcastStatus as string) ===
-														'generating' ||
-													queue.length === 0
-												}
-												className='px-4 py-2 bg-destructive text-white rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
-											>
-												<FileSearch
-													size={14}
-													className='mr-1'
+											<div className='flex items-center gap-2'>
+												<input
+													type='text'
+													placeholder='Investigation focus...'
+													value={investigationFocus}
+													onChange={(e) =>
+														setInvestigationFocus(
+															e.target.value
+														)
+													}
+													className='px-3 py-2 bg-background border border-border rounded text-sm w-48 focus:outline-none focus:ring-2 focus:ring-destructive/50'
 												/>
-												<span>
-													Investigative Report
-												</span>
-											</button>
+												<button
+													onClick={
+														generateInvestigativeReport
+													}
+													disabled={
+														(reportStatus as string) ===
+															'generating' ||
+														(podcastStatus as string) ===
+															'generating' ||
+														queue.length === 0
+													}
+													className='px-4 py-2 bg-destructive text-white rounded text-sm border-0 flex items-center cursor-pointer gap-2 disabled:opacity-60'
+												>
+													<FileSearch
+														size={14}
+														className='mr-1'
+													/>
+													<span>
+														Investigative Report
+													</span>
+												</button>
+											</div>
 											<button className='px-4 py-2 bg-accent text-accent-foreground rounded text-sm border-0 flex items-center cursor-pointer gap-2'>
 												<MessageSquare
 													size={14}

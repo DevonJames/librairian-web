@@ -6,7 +6,6 @@ import {
 	DocumentGroupProvider,
 	useDocumentGroups,
 } from '../../lib/context/DocumentGroupContext';
-import { DocumentDockProvider } from '../../lib/context/DocumentDockContext';
 import { DocumentDock } from '../../components/ui/DocumentDock';
 import GlobalDocumentGroupFilter from '../../components/layout/GlobalDocumentGroupFilter';
 import Button from '@mui/material/Button';
@@ -79,22 +78,20 @@ export default function JFKFilesLayout({
 }) {
 	return (
 		<DocumentGroupProvider>
-			<DocumentDockProvider>
-				<div className='flex flex-col h-full relative'>
-					{/* Include the parallel route data - wrapped to avoid key warnings */}
-					<React.Fragment key="sidebar">{sidebar}</React.Fragment>
+			<div className='flex flex-col h-full relative'>
+				{/* Include the parallel route data - wrapped to avoid key warnings */}
+				<React.Fragment key="sidebar">{sidebar}</React.Fragment>
 
-					{/* Main content area with bottom padding for dock */}
-					<div key="main-content" className='flex-1 overflow-auto p-4 pb-20'>
-						{children}
-					</div>
-
-					{/* Fixed dock at the bottom */}
-					<div key="dock" className='fixed bottom-0 left-0 right-0 z-10 border-t bg-background md:ml-64'>
-						<DocumentDock />
-					</div>
+				{/* Main content area with bottom padding for dock */}
+				<div key="main-content" className='flex-1 overflow-auto p-4 pb-20'>
+					{children}
 				</div>
-			</DocumentDockProvider>
+
+				{/* Fixed dock at the bottom */}
+				<div key="dock" className='fixed bottom-0 left-0 right-0 z-10 border-t bg-background md:ml-64'>
+					<DocumentDock />
+				</div>
+			</div>
 		</DocumentGroupProvider>
 	);
 }
